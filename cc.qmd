@@ -26,7 +26,7 @@ library(maps)
 library(ggrepel)
 library(sf)
 
-my_sf <- read_sf("nyc-streets.geojson") |>
+my_sf <- read_sf("UHF42.geo.json") |>
   janitor::clean_names()
 
 ```
@@ -42,7 +42,7 @@ missing_coords <- data |>
     select(on_street_name)
 
 coords <- data |>
-  select(c(longitude, latitude)) |>
+  select(c(longitude, latitude, number_of_persons_injured, number_of_persons_killed)) |>
   filter(!is.na(longitude), !is.na(latitude), latitude != 0, longitude != 0) |>
   mutate(longitude = ifelse(longitude < -200, yes =longitude + 127.2832727, longitude))
   
@@ -67,48 +67,96 @@ data_sf <- st_as_sf(
   st_crs(data_sf)
   st_crs(my_sf)
 
-  nearest_index <- st_nearest_feature(data_sf, my_sf)
 
-joined <- cbind(
-  data_sf,
-  my_sf[nearest_index, ]
-) 
+counts <- lengths(st_intersects(my_sf, data_sf))
 
-joined <- joined |>
-  select(geom) |>
-  rename(geom = geometry.1) 
+joined <- st_intersection(my_sf, data_sf)
 
-  ggplot(joined) +
-  geom_sf(aes(fill = joined), color = "black", linewidth = 0.1) +
+my_sf$n <- counts
+
+  ggplot(my_sf) +
+  geom_sf(aes(fill = n), color = "black", linewidth = 0.1) +
   theme_void()
 
+geom_sf()
 
 ```
 
+```{r}
+#| label: analysis
+
+# Top ten neighborhoods with most vehicle collisions
+my_sf |>
+  mutate(my_sf, geoname = fct_reorder(geoname, n)) |>
+  arrange(desc(n)) |>
+  slice(1:10) |>
+  ggplot(
+    aes(geoname, n)
+  ) +
+  geom_col() +
+  coord_flip() +
+  labs(
+    title = "Top Ten Neighborhoods with Most Vehicle Collisions",
+    y = "Neighborhoods",
+    x = "Collisions"
+  )
+
+
+# Boroughs with most vehicle collisons
+my_sf |>
+  filter(
+    borough != "N/A"
+  ) |>
+  group_by(borough) |>
+  summarize(
+    ct = sum(n)
+  ) |>
+  mutate(borough = fct_reorder(borough, ct)) |>
+  arrange(desc(ct)) |>
+  slice(1:10) |>
+  ggplot(
+    aes(borough, ct)
+  ) +
+  geom_col() +
+  coord_flip() +
+  labs(
+    title = "Ranked Boroughs with Most Vehicles Collisions",
+    y = "Borough",
+    x = "Collisions"
+  )
+
+  # Casualties
+
+```
 
 ```{r}
 #| label: handling missing data 
-lat_longs <- sample_addresses %>% 
-  geocode(addr,lat=latitude,long=longitude)
+n <- ceiling(nrow(missing_coords) / 10000)
 
-n <- ceiling(nrow(locations) / 10000)
+ds <- split(missing_coords, factor(sort(rank(row.names(missing_coords))%%n)))
 
-ds <- split(locations, factor(sort(rank(row.names(locations))%%n)))
+census_records <- data.frame()
 
 ds <- lapply(ds, function(d) {
   as.data.frame(d) |>
     mutate(on_street_name = paste0(on_street_name, ", NY")) |>
     geocode(
       address = on_street_name,
-      method = "geocodio",
+      method = "census",
       lat = "latitude",
       long = "longitude"
     )
 })
 
-d <- asds[1]
+ ds <- bind_rows(ds) |>
+  filter(is.na(latitude))
 
-d <- as.data.frame(ds[1]) |> mutate(on_street_name = paste0(on_street_name, ", NY")) |>
-    geocode("on_street_name", method = 'geocodio', lat = latitude, long = longitude)
+ census_records <- bind_rows(ds) |>
+  filter(!is.na(latitude)) 
+
+census_records$on_street_name <- census_records$on_street__name |> str_remove(", NY")
+  
+
 
 ```
+
