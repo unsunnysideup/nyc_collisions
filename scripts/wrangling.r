@@ -63,7 +63,8 @@ merged_data <- merge(data, combined, by.x = "collision_id", by.y = "collision_id
   select(-id) |>
     mutate(number_of_persons_killed = ifelse(is.na(number_of_persons_killed), 0, number_of_persons_killed),
     number_of_persons_injured = ifelse(is.na(number_of_persons_injured), 0, number_of_persons_injured),
-    contributing_factor_vehicle_1 = ifelse(is.na(contributing_factor_vehicle_1), "Unspecified", contributing_factor_vehicle_1)) |>
+    contributing_factor_vehicle_1 = ifelse(is.na(contributing_factor_vehicle_1), "Unspecified", contributing_factor_vehicle_1),
+    crash_time = as.POSIXct(crash_time, format = "%H:%M:%S", tz = "EST")) |>
     drop_na(location) |>
   distinct()
 toc()

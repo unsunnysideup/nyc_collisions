@@ -33,6 +33,7 @@ library(janitor)
 ```{r}
 my_sf <- read_rds("data/my_sf.rds") 
 data <- read_rds("data/collisions_data.rds") 
+
 ```
 
 ```{r}
