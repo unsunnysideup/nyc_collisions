@@ -13,10 +13,11 @@ library(lubridate)
 library(arrow)
 library(waiter)
 
+# loading all necessary datasets for the app
 data <- read_parquet("data/collisions_data.parquet") 
 my_sf <- read_rds("data/my_sf.rds")
 
-# data for database
+# database 
 database <- data |>
       select(-c(location)) |>
       filter(!str_detect(contributing_factor_vehicle_1, "\\d")) |>
@@ -29,12 +30,14 @@ database <- data |>
       select(collision_id, crash_date, crash_time, borough, geocode, geoname, longitude, latitude, contributing_factor, everything())
 
 # UI
-
 ui <- page_navbar(
+  # loading screen
   header = tagList(
     useWaiter(),
     waiterOnBusy(html = spin_folding_cube(), color = "#000000")
   ),
+
+  # customized cyborg theme + styling
   theme = bs_theme(
     bg = "#101010",
     fg = "#FFF",
@@ -54,10 +57,14 @@ ui <- page_navbar(
     html, body { -ms-overflow-style: none; scrollbar-width: none; }
     #attribution_link {color: #ffef5fff !important;}
   "),
+
+  # home panel for chloropleth + borough rank table
   nav_panel("Home",
   div(
     style = "position: flex; justify-content: center; align-items: center; height: 100vh;",
+    # leaflet output
     leafletOutput("map", height = "100%"),
+    # side panel 
     absolutePanel(
         top = "15%", right = "5%", width = "20%", height = "90%",
         style = "background: rgba(0,0,0,0.6); color: white; padding: 15px; border-radius: 8px;",
@@ -74,8 +81,11 @@ ui <- page_navbar(
                   ),
         DTOutput("boroughtable", height = "60%"))
   )),
+
+  # compare panel: sidebar + 4 visuals exploring temporal patterns and casualty breakdowns
   nav_panel("Compare", 
   layout_sidebar(
+    # sidebar for time analysis and selection of two regions
     sidebar = sidebar(
       id = "compare_sidebar",
       width = "35%",
@@ -88,6 +98,8 @@ ui <- page_navbar(
       selectInput("region_type", "Type of Region to Compare", choices = c("Borough" = "borough", "Neighborhood" = "geoname")),
       selectInput("region_1", "Select Region #1", choices = NULL),
       selectInput("region_2", "Select Region #2", choices = NULL)),
+
+    # 4 cards, each to a visualization
     layout_columns(
       col_widths = c(6, 6, 6, 6),
       card(
@@ -103,6 +115,8 @@ ui <- page_navbar(
         class = "compare_card",
         plotlyOutput("fatalityChart")))
   )),
+
+  # database panel: explore data + export with filters applied
   nav_panel("Database",
   div(
     style = "background: black; color: #f0e15a; padding: 20px; text-align: center;",
@@ -127,7 +141,10 @@ ui <- page_navbar(
 
 # Server
 server <- function(input, output, session) {
+  # waiter for map rendering
   w <- Waiter$new(id = c("map"))
+
+  # reactive data for chloropleth
   map_data <- reactive({
     w$show()
     counts <- data |> 
@@ -148,6 +165,7 @@ server <- function(input, output, session) {
     left_join(my_sf, counts, by = "geoname")
   }) 
 
+  # reactive data for popup crash factor info
   reasons <- reactive({
     data |> 
       filter(crash_date >= input$map_date_range[1],
@@ -157,13 +175,16 @@ server <- function(input, output, session) {
       arrange(desc(count))
   })
 
+  # leaflet
   output$map <- renderLeaflet({
     leaflet_data <- map_data()
     factor_data <- reasons()
 
+    # customizing map based on metric selected
     metric <- input$metric
     leaflet_data$value <- leaflet_data[[metric]]
 
+    # color scheme
     pal <- colorNumeric(
     palette = "YlOrRd", 
     domain = leaflet_data$value)
@@ -195,6 +216,8 @@ server <- function(input, output, session) {
                 , lat2 = 42.0329 )
 
   })
+
+  # ranked borough table
   output$boroughtable <- renderDT({
     metric <- input$metric
 
@@ -208,7 +231,7 @@ server <- function(input, output, session) {
       caption = "Boroughs by Frequency" )
   })
 
-  ## Page 2
+  # dropdown options for borough and neighborhood selections
   observeEvent(input$region_type, {
     choices <- if (input$region_type == "geoname") {
       sort(unique(data$geoname))
@@ -219,6 +242,8 @@ server <- function(input, output, session) {
   updateSelectInput(session, "region_1", choices = choices)
   updateSelectInput(session, "region_2", choices = choices)
   })
+
+  # reactive data for the 4 visualizations based on region selected
   comparison_data <- reactive({
     region_col <- if (input$region_type == "geoname") "geoname" else "borough"
 
@@ -227,6 +252,8 @@ server <- function(input, output, session) {
       filter(.data[[region_col]] %in% c(input$region_1, input$region_2)) |>
       filter(crash_date >= input$date_range[1], crash_date <= input$date_range[2]) 
   })
+
+  # time series plot by hr in 24 hr time frame
   output$hourPlot <- renderPlotly({
     hourData <- comparison_data()
     region_col <- if (input$region_type == "geoname") "geoname" else "borough"
@@ -250,6 +277,8 @@ server <- function(input, output, session) {
              xaxis = list(title = "Hour of Crash (24-Hr Period)"),
              yaxis = list(title = "Collision Occurences"))
   })
+
+  # time series plot by date
   output$timePlot <- renderPlotly({
     timeData <- comparison_data()
     region_col <- if (input$region_type == "geoname") "geoname" else "borough"
@@ -270,6 +299,8 @@ server <- function(input, output, session) {
       yaxis = list(title = "Collision Occurrences"))
 
   })
+
+  # injury barchart 
   output$injuryChart <- renderPlotly({
     injuryData <- comparison_data() 
     region_col <- if (input$region_type == "geoname") "geoname" else "borough"
@@ -294,6 +325,8 @@ server <- function(input, output, session) {
             xaxis = list(title = "Category"),
             yaxis = list(title = "Injuries"))
   })
+
+  # fatality barchart
   output$fatalityChart <- renderPlotly({
     fatalityData <- comparison_data() 
     region_col <- if (input$region_type == "geoname") "geoname" else "borough"
@@ -319,7 +352,7 @@ server <- function(input, output, session) {
             yaxis = list(title = "Fatalities"))
   })
 
-  
+  # interactive database
   output$database <- renderDT ({
     server = TRUE
 
@@ -334,6 +367,8 @@ server <- function(input, output, session) {
     filter = 'top',
     rownames = TRUE)
   })
+
+  # export handler
   output$data_exporter <- downloadHandler(
     filename = function() {
       "nyc_collisions.csv"
