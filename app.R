@@ -122,7 +122,7 @@ ui <- page_navbar(
 )
 
   )),
-  title = "CrashLens NYC"
+  title = "NYC CrashLens"
 )
 
 # Server
@@ -186,8 +186,8 @@ server <- function(input, output, session) {
              "<br><b>Occurrences</b>: ", v,
               "<br><b>Top Three Crash Factors</b>: ", paste(top_reasons, collapse = ", "))
     }, borough, geoname, value, SIMPLIFY = TRUE))) |>
-    setView( lng = -73.9570
-           , lat = 40.708116
+    setView( lng = -73.889
+           , lat = 40.7125
            , zoom = 11 ) |>
   setMaxBounds( lng1 = -75.9374
                 , lat1 = 39.3682
