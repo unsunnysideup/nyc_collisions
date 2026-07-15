@@ -9,10 +9,11 @@ library(sf)
 library(tictoc)
 library(janitor)
 library(arrow)
+library(geojsonsf)
 
 
 # wrangling data
-my_sf <- read_sf("data/UHF42.geo.json") |>
+my_sf <- geojson_sf("https://raw.githubusercontent.com/nycehs/NYC_geography/master/UHF42.geo.json") |>
   clean_names()
 
 census_records <- readRDS("data/census_records.rds")
@@ -62,12 +63,11 @@ merged_data <- merge(data, combined, by.x = "collision_id", by.y = "collision_id
   rename(longitude = longitude.y,
   latitude = latitude.y) |> 
   filter(borough != "N/A") |> 
-  select(-id) |>
-    mutate(number_of_persons_killed = ifelse(is.na(number_of_persons_killed), 0, number_of_persons_killed),
-    number_of_persons_injured = ifelse(is.na(number_of_persons_injured), 0, number_of_persons_injured),
-    contributing_factor_vehicle_1 = ifelse(is.na(contributing_factor_vehicle_1), "Unspecified", contributing_factor_vehicle_1),
-    crash_time = as.POSIXct(crash_time, format = "%H:%M:%S", tz = "EST")) |>
-    drop_na(location) |>
+  mutate(number_of_persons_killed = ifelse(is.na(number_of_persons_killed), 0, number_of_persons_killed),
+  number_of_persons_injured = ifelse(is.na(number_of_persons_injured), 0, number_of_persons_injured),
+  contributing_factor_vehicle_1 = ifelse(is.na(contributing_factor_vehicle_1), "Unspecified", contributing_factor_vehicle_1),
+  crash_time = as.POSIXct(crash_time, format = "%H:%M:%S", tz = "EST")) |>
+  drop_na(location) |>
   distinct()
 toc()
 
@@ -76,7 +76,7 @@ toc()
 geoname_count <- merged_data |> group_by(geoname) |>
   summarize(count = n()) 
 
-my_sf <- my_sf |> filter(id != 0)
+my_sf <- my_sf |> filter(geocode != 0)
 
 # saved data
  write_parquet(merged_data, "data/collisions_data.parquet")
