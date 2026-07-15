@@ -117,13 +117,13 @@ ui <- page_navbar(
 )
 
   )),
-  title = "NYC Collisions"
+  title = "CrashLens NYC"
 )
 
 # Server
 server <- function(input, output, session) {
   map_data <- reactive({
-    data |> 
+    counts <- data |> 
     filter(crash_date >= input$map_date_range[1],
            crash_date <= input$map_date_range[2]) |>
     group_by(crash_date, geoname, borough) |>
@@ -136,8 +136,9 @@ server <- function(input, output, session) {
     deaths = sum(deaths),
     injuries = sum(injuries), 
     .groups = "drop") |>
-    select(geoname, count, deaths, injuries) |>
-    right_join(my_sf, by = "geoname")
+    select(geoname, count, deaths, injuries) 
+    
+    left_join(my_sf, counts, by = "geoname")
   })   
   output$map <- renderLeaflet({
     leaflet_data <- map_data()

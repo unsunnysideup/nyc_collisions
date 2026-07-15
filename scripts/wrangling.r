@@ -8,7 +8,7 @@ library(ggrepel)
 library(sf)
 library(tictoc)
 library(janitor)
-library(sfarrow)
+library(arrow)
 
 
 # wrangling data
