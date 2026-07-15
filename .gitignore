@@ -7,3 +7,4 @@ renv/activate.R
 .Rprofile
 .posit/
 scripts/analysis.qmd
+outline.md
