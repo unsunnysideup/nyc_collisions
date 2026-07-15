@@ -6,5 +6,4 @@ renv/activate.R
 *.json
 .Rprofile
 .posit/
-scripts/analyis.qmd
-
+scripts/analysis.qmd
