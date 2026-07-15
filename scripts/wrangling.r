@@ -12,10 +12,11 @@ library(arrow)
 library(geojsonsf)
 
 
-# wrangling data
+# Loading geojson from NYC Environmental Health Services Github Repo
 my_sf <- geojson_sf("https://raw.githubusercontent.com/nycehs/NYC_geography/master/UHF42.geo.json") |>
   clean_names()
 
+# Joining recovered coordinates to the datasrt
 census_records <- readRDS("data/census_records.rds")
 
 data <- vroom("data/Motor_Vehicle_Collisions_-_Crashes_20260612.csv") |>

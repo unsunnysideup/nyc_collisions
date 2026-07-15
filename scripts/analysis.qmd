@@ -35,33 +35,7 @@ library(leaflet)
 my_sf <- read_rds("data/my_sf.rds") 
 data <- read_rds("data/collisions_data.rds") 
 
-```
-
-```{r}
-# all chloropleth map of NYC collisions , slider of years
-
-# Define a color palette
-pal <- colorNumeric(
-  palette = "YlOrRd", 
-  domain = my_sf$deaths
-)
-
-# Create the map
-leaflet(my_sf) %>%
-  addTiles() %>%
-  addPolygons(
-    fillColor = ~pal(count),
-    fillOpacity = 0.8,
-    color = "white",
-    weight = 1,
-    popup = paste0("Region: ", my_sf$geoname, "<br>Value: ", my_sf$count)
-  )   
-
-
-ggplot(my_sf) +
-geom_sf(aes(fill = count)) +
-  theme_void()
-
+# data for testing leaflet maps
 s <-  data |> group_by(crash_date, geometry, geoname, borough) |>
     summarize(count = n(),
     deaths = sum(number_of_persons_killed),
@@ -73,7 +47,30 @@ s <-  data |> group_by(crash_date, geometry, geoname, borough) |>
     injuries = sum(injuries), 
     .groups = "drop") |> 
     st_as_sf()
+
+```
+
+```{r}
+#  chloropleth leaflet of NYC collisions , slider of years
+
+# Define a color palette
+pal <- colorNumeric(
+  palette = "YlOrRd", 
+  domain = my_sf$deaths
+)
+
+# creating the map
+leaflet(my_sf) %>%
+  addTiles() %>%
+  addPolygons(
+    fillColor = ~pal(count),
+    fillOpacity = 0.8,
+    color = "white",
+    weight = 1,
+    popup = paste0("Region: ", my_sf$geoname, "<br>Value: ", my_sf$count)
+  )   
   
+# testing leaflet 
 leaflet(s) |>
     addTiles() |>
     addPolygons(
@@ -102,8 +99,6 @@ leaflet(s) |>
     ggplot() +
     geom_sf(aes(fill = deaths)) +
     theme_void()
-
-
 
 # Top ten neighborhoods with most vehicle collisions
 # slider of years 
@@ -157,7 +152,7 @@ my_sf |>
 
 #filter(between(crash_date, as.Date("2014-01-20"), as.Date("2014-01-27"))) 
 
-# injured
+# injuries
 data |> group_by(borough) |>
     summarize(number_of_persons_injured = sum(number_of_persons_injured)) |>
   mutate(borough = fct_reorder(borough, number_of_persons_injured)) |>
@@ -165,7 +160,7 @@ data |> group_by(borough) |>
   geom_col() +
   coord_flip()
 
-# killed 
+# fatalities 
 data |> group_by(borough) |>
   summarize(number_of_persons_killed = sum(number_of_persons_killed)) |>
   mutate(borough = fct_reorder(borough, number_of_persons_killed)) |>
@@ -173,7 +168,7 @@ data |> group_by(borough) |>
   geom_col() +
   coord_flip()
 
-# Reasons 
+# reasons 
 data |> filter(contributing_factor_vehicle_1 != "Unspecified") |> group_by(contributing_factor_vehicle_1) |>
   summarize(n = n()) |>
   mutate(contributing_factor_vehicle_1 = fct_reorder(contributing_factor_vehicle_1, n)) |>
