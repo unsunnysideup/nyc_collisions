@@ -4,7 +4,6 @@ library(vroom)
 library(maps)
 library(ggrepel)
 library(sf)
-library(janitor)
 library(leaflet)
 library(bslib)
 library(plotly)
@@ -13,11 +12,12 @@ library(DT)
 library(lubridate)
 library(arrow)
 
-data <- read_rds("data/collisions_data.rds") 
+data <- read_parquet("data/collisions_data.parquet") 
+my_sf <- read_rds("data/my_sf.rds")
 
 # data for database
 database <- data |>
-      select(-c(location, geometry)) |>
+      select(-c(location)) |>
       filter(!str_detect(contributing_factor_vehicle_1, "\\d")) |>
       mutate(
         geoname = as.factor(geoname),
@@ -126,18 +126,19 @@ server <- function(input, output, session) {
     data |> 
     filter(crash_date >= input$map_date_range[1],
            crash_date <= input$map_date_range[2]) |>
-    group_by(crash_date, geometry, geoname, borough) |>
+    group_by(crash_date, geoname, borough) |>
     summarize(count = n(),
     deaths = sum(number_of_persons_killed),
     injuries = sum(number_of_persons_injured),
     .groups = "drop") |> 
-    group_by(geometry, geoname, borough) |>
+    group_by(geoname, borough) |>
     summarize(count = sum(count),
     deaths = sum(deaths),
     injuries = sum(injuries), 
-    .groups = "drop") |> 
-    st_as_sf()}
-  )   
+    .groups = "drop") |>
+    select(geoname, count, deaths, injuries) |>
+    right_join(my_sf, by = "geoname")
+  })   
   output$map <- renderLeaflet({
     leaflet_data <- map_data()
     metric <- input$metric
@@ -191,6 +192,7 @@ server <- function(input, output, session) {
     region_col <- if (input$region_type == "geoname") "geoname" else "borough"
 
     data |>
+      st_drop_geometry() |>
       filter(.data[[region_col]] %in% c(input$region_1, input$region_2)) |>
       filter(crash_date >= input$date_range[1], crash_date <= input$date_range[2]) 
   })

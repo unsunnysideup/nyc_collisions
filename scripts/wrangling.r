@@ -8,6 +8,8 @@ library(ggrepel)
 library(sf)
 library(tictoc)
 library(janitor)
+library(sfarrow)
+
 
 # wrangling data
 my_sf <- read_sf("data/UHF42.geo.json") |>
@@ -56,7 +58,7 @@ combined <- st_join(my_sf, data_sf)
 
 # merging original data with the spatial and geographical data from combined
 merged_data <- merge(data, combined, by.x = "collision_id", by.y = "collision_id", all.x = TRUE) |>
-  select(-c(latitude.x, longitude.x)) |>
+  select(-c(latitude.x, longitude.x, geometry)) |>
   rename(longitude = longitude.y,
   latitude = latitude.y) |> 
   filter(borough != "N/A") |> 
@@ -74,12 +76,11 @@ toc()
 geoname_count <- merged_data |> group_by(geoname) |>
   summarize(count = n()) 
 
-my_sf <- my_sf |>
-  left_join(geoname_count, by = "geoname") |> drop_na()
+my_sf <- my_sf |> filter(id != 0)
 
 # saved data
+ write_parquet(merged_data, "data/collisions_data.parquet")
  saveRDS(my_sf, "data/my_sf.rds")
- saveRDS(merged_data, "data/collisions_data.rds")
 
 
 
