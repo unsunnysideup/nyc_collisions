@@ -34,7 +34,7 @@ The data has over 2.27 million crash entries spanning from 2012 to 2026, and has
 ### Geospatial Data 
 The [data](https://github.com/nycehs/NYC_geography/blob/master/UHF42.geo.json) for the geospatial structures of New York City is sourced from the NYC Environmental Health Services Github Repo. 
 
-### Setup 
+## Setup 
 #### Prerequisites:
 - R 
 - RStudio or Positron
