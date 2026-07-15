@@ -17,24 +17,12 @@ library(waiter)
 data <- read_parquet("data/collisions_data.parquet") 
 my_sf <- read_rds("data/my_sf.rds")
 
-# database 
-database <- data |>
-      select(-c(location)) |>
-      filter(!str_detect(contributing_factor_vehicle_1, "\\d")) |>
-      mutate(
-        geoname = as.factor(geoname),
-        borough = as.factor(borough),
-        contributing_factor_vehicle_1 = as.factor(contributing_factor_vehicle_1)
-      ) |>
-      rename(contributing_factor = contributing_factor_vehicle_1) |>
-      select(collision_id, crash_date, crash_time, borough, geocode, geoname, longitude, latitude, contributing_factor, everything())
-
 # UI
 ui <- page_navbar(
   # loading screen
   header = tagList(
     useWaiter(),
-    waiterOnBusy(html = spin_folding_cube(), color = "#000000")
+    waiterShowOnLoad(html = spin_folding_cube(), color = "#000000")
   ),
 
   # customized cyborg theme + styling
@@ -49,13 +37,13 @@ ui <- page_navbar(
     bootswatch = "cyborg",
     font_scale = 1.2)
     |> bs_add_rules("
-    .navbar { background-color: #000000ff !important; }
-    .navbar { padding-top: 15px; padding-bottom: 15px;}
+    .navbar { background-color: #000000ff !important; padding-top: 15px; padding-bottom: 15px;}
     .compare_card { background-color: white !important;}
     #compare_sidebar { padding-top: 5px; padding-left: 15px; padding-right: 15px}
     html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
     html, body { -ms-overflow-style: none; scrollbar-width: none; }
     #attribution_link {color: #ffef5fff !important;}
+    .button {display: flex; justify-content: center; align-items: center;}
   "),
 
   # home panel for chloropleth + borough rank table
@@ -79,7 +67,9 @@ ui <- page_navbar(
         sliderInput("map_date_range", NULL, min = min(data$crash_date), max = max(data$crash_date), 
                     value = c(min(data$crash_date), max(data$crash_date))
                   ),
-        DTOutput("boroughtable", height = "60%"))
+        div(class = "button", actionButton("homeUpdate", "Update Me!")),
+        div(style = "margin-top: 20px;", DTOutput("boroughtable", height = "60%")
+        ))
   )),
 
   # compare panel: sidebar + 4 visuals exploring temporal patterns and casualty breakdowns
@@ -97,7 +87,8 @@ ui <- page_navbar(
                   value = c(min(data$crash_date), max(data$crash_date))),
       selectInput("region_type", "Type of Region to Compare", choices = c("Borough" = "borough", "Neighborhood" = "geoname")),
       selectInput("region_1", "Select Region #1", choices = NULL),
-      selectInput("region_2", "Select Region #2", choices = NULL)),
+      selectInput("region_2", "Select Region #2", choices = NULL),
+      div(class = "button", actionButton("compareUpdate", "Update Me!"))),
 
     # 4 cards, each to a visualization
     layout_columns(
@@ -142,10 +133,11 @@ ui <- page_navbar(
 # Server
 server <- function(input, output, session) {
   # waiter for map rendering
-  w <- Waiter$new(id = c("map"))
+  w <- Waiter$new(html = spin_folding_cube(), 
+                  color = "#000000")
 
   # reactive data for chloropleth
-  map_data <- reactive({
+  map_data <- eventReactive(input$homeUpdate, {
     w$show()
     counts <- data |> 
     filter(crash_date >= input$map_date_range[1],
@@ -163,31 +155,35 @@ server <- function(input, output, session) {
     select(geoname, count, deaths, injuries) 
     
     left_join(my_sf, counts, by = "geoname")
-  }) 
+  }, ignoreNULL = FALSE) 
 
   # reactive data for popup crash factor info
-  reasons <- reactive({
+  reasons <- eventReactive(input$homeUpdate, {
     data |> 
       filter(crash_date >= input$map_date_range[1],
       crash_date <= input$map_date_range[2], contributing_factor_vehicle_1 != "Unspecified") |>
       group_by(geoname, contributing_factor_vehicle_1) |>
       summarize(count = n(), .groups = "drop") |>
       arrange(desc(count))
-  })
+  }, ignoreNULL = FALSE)
 
   # leaflet
   output$map <- renderLeaflet({
+    req(map_data())
+    req(reasons())
     leaflet_data <- map_data()
     factor_data <- reasons()
 
     # customizing map based on metric selected
-    metric <- input$metric
+    metric <- isolate(input$metric)
     leaflet_data$value <- leaflet_data[[metric]]
 
     # color scheme
     pal <- colorNumeric(
     palette = "YlOrRd", 
     domain = leaflet_data$value)
+
+    w$hide()
     
     leaflet(leaflet_data, options = leafletOptions(minZoom = 10)) |>
     addTiles() |>
@@ -204,9 +200,15 @@ server <- function(input, output, session) {
         pull(contributing_factor_vehicle_1)
       paste0("<b>Borough</b>: ", b, 
              "<br><b>Neighborhood</b>: ", g, 
-             "<br><b>Occurrences</b>: ", v,
+             "<br><b>Total Count</b>: ", v,
               "<br><b>Top Three Crash Factors</b>: ", paste(top_reasons, collapse = ", "))
     }, borough, geoname, value, SIMPLIFY = TRUE))) |>
+    addLegend(
+            position = "bottomleft",
+            pal = pal,
+            values = leaflet_data$value,
+            title = "Count Range",
+            opacity = 1) |>
     setView( lng = -73.889
            , lat = 40.7125
            , zoom = 11 ) |>
@@ -214,12 +216,15 @@ server <- function(input, output, session) {
                 , lat1 = 39.3682
                 , lng2 = -71.7187
                 , lat2 = 42.0329 )
+    
 
   })
 
+  
+
   # ranked borough table
   output$boroughtable <- renderDT({
-    metric <- input$metric
+    metric <- isolate(input$metric)
 
     map_data() |>
       st_drop_geometry() |>
@@ -228,7 +233,7 @@ server <- function(input, output, session) {
       rename(Borough = borough, Total = total) |>
       arrange(desc(Total)) |>
       datatable(options = list(dom = 't'), 
-      caption = "Boroughs by Frequency" )
+      caption = "Boroughs Ranked by Total Count")
   })
 
   # dropdown options for borough and neighborhood selections
@@ -244,20 +249,23 @@ server <- function(input, output, session) {
   })
 
   # reactive data for the 4 visualizations based on region selected
-  comparison_data <- reactive({
+  comparison_data <- eventReactive(input$compareUpdate, {
+    w$show()
     region_col <- if (input$region_type == "geoname") "geoname" else "borough"
 
     data |>
       st_drop_geometry() |>
       filter(.data[[region_col]] %in% c(input$region_1, input$region_2)) |>
       filter(crash_date >= input$date_range[1], crash_date <= input$date_range[2]) 
-  })
+  }, ignoreNULL = FALSE)
 
   # time series plot by hr in 24 hr time frame
   output$hourPlot <- renderPlotly({
+    req(comparison_data())
     hourData <- comparison_data()
     region_col <- if (input$region_type == "geoname") "geoname" else "borough"
     
+    w$hide()
     hourData |>
       mutate(crash_hour = hour(crash_time)) |>
       group_by(crash_hour, region = .data[[region_col]]) |>
@@ -272,14 +280,15 @@ server <- function(input, output, session) {
               mode = 'lines',
               text = ~paste0("Time: ", crash_hour, ":00", "<br>Count: ", collisions),
               hoverinfo = "text") |>
-      layout(title = 'Time Series Plot by Hour',
+      layout(title = 'Hourly Crash Trends',
              legend=list(title=list(text='Region')),
              xaxis = list(title = "Hour of Crash (24-Hr Period)"),
-             yaxis = list(title = "Collision Occurences"))
+             yaxis = list(title = "Total Crash Count"))
   })
 
   # time series plot by date
   output$timePlot <- renderPlotly({
+    req(comparison_data())
     timeData <- comparison_data()
     region_col <- if (input$region_type == "geoname") "geoname" else "borough"
 
@@ -293,15 +302,16 @@ server <- function(input, output, session) {
               mode = 'lines',
               text = ~paste0("Date: ", crash_date, "<br>Count: ", collisions),
               hoverinfo = "text") |>
-      layout(title = "Time Series Plot by Date", 
+      layout(title = "Crashes over Time", 
       legend=list(title=list(text='Region')),
       xaxis = list(title = "Date of Crash"),
-      yaxis = list(title = "Collision Occurrences"))
+      yaxis = list(title = "Total Crash Count"))
 
   })
 
   # injury barchart 
   output$injuryChart <- renderPlotly({
+    req(comparison_data())
     injuryData <- comparison_data() 
     region_col <- if (input$region_type == "geoname") "geoname" else "borough"
 
@@ -319,7 +329,7 @@ server <- function(input, output, session) {
               text = ~paste0("<br>Category: ", category, "<br>Injuries: ", injuries),
               hoverinfo = "text",
               textposition = "none") |>
-      layout(title = "Injury Breakdown Bar Chart", 
+      layout(title = "Total Injuries Breakdown", 
             barmode = "group", 
             legend=list(title=list(text='Region')),
             xaxis = list(title = "Category"),
@@ -328,6 +338,7 @@ server <- function(input, output, session) {
 
   # fatality barchart
   output$fatalityChart <- renderPlotly({
+    req(comparison_data())
     fatalityData <- comparison_data() 
     region_col <- if (input$region_type == "geoname") "geoname" else "borough"
 
@@ -345,7 +356,7 @@ server <- function(input, output, session) {
               text = ~paste0("<br>Category: ", category, "<br>Fatalities: ", deaths),
               hoverinfo = "text",
               textposition = "none") |>
-      layout(title = "Fatality Breakdown Bar Chart", 
+      layout(title = "Total Fatalities Breakdown", 
             barmode = "group", 
             legend=list(title=list(text='Region')), 
             xaxis = list(title = "Category"),
@@ -354,11 +365,24 @@ server <- function(input, output, session) {
 
   # interactive database
   output$database <- renderDT ({
-    server = TRUE
+    w$show()
+    
+    database <- data |>
+      select(-c(location)) |>
+      filter(!str_detect(contributing_factor_vehicle_1, "\\d")) |>
+      mutate(
+        geoname = as.factor(geoname),
+        borough = as.factor(borough),
+        contributing_factor_vehicle_1 = as.factor(contributing_factor_vehicle_1)
+      ) |>
+      rename(contributing_factor = contributing_factor_vehicle_1) |>
+      select(collision_id, crash_date, crash_time, borough, geocode, geoname, longitude, latitude, contributing_factor, everything())
+
+    w$hide()
 
     datatable(database,
     options = list(
-      page_length = 5,
+      pageLength = 5,
       searching = TRUE,
       ordering = TRUE,
       autoWidth = TRUE
@@ -366,7 +390,7 @@ server <- function(input, output, session) {
     selection = 'multiple',
     filter = 'top',
     rownames = TRUE)
-  })
+  }, server = TRUE)
 
   # export handler
   output$data_exporter <- downloadHandler(
