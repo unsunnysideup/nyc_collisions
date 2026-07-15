@@ -263,8 +263,13 @@ server <- function(input, output, session) {
         collisions = n(),
         .groups = "drop"
       ) |>
-      plot_ly(x = ~crash_hour, y = ~collisions, color = ~region, 
-        type = 'scatter', mode = 'lines') |>
+      plot_ly(x = ~crash_hour, 
+              y = ~collisions, 
+              color = ~region, 
+              type = 'scatter', 
+              mode = 'lines',
+              text = ~paste0("Time: ", crash_hour, ":00", "<br>Count: ", collisions),
+              hoverinfo = "text") |>
       layout(title = 'Time Series Plot by Hour',
              legend=list(title=list(text='Region')),
              xaxis = list(title = "Hour of Crash (24-Hr Period)"),
@@ -277,8 +282,13 @@ server <- function(input, output, session) {
     timeData |>
       group_by(crash_date, region = .data[[region_col]]) |>
       summarize(collisions = n(), .groups = "drop") |>
-      plot_ly(x = ~crash_date, y = ~collisions, color = ~region,
-      type = 'scatter', mode = 'lines') |>
+      plot_ly(x = ~crash_date, 
+              y = ~collisions, 
+              color = ~region,
+              type = 'scatter',
+              mode = 'lines',
+              text = ~paste0("Date: ", crash_date, "<br>Count: ", collisions),
+              hoverinfo = "text") |>
       layout(title = "Time Series Plot by Date", 
       legend=list(title=list(text='Region')),
       xaxis = list(title = "Date of Crash"),
@@ -296,7 +306,13 @@ server <- function(input, output, session) {
       motorists = sum(number_of_motorist_injured),
       .groups = "drop") |>
       pivot_longer(-region, names_to = "category", values_to = "injuries") |>
-      plot_ly(x = ~category, y = ~injuries, color = ~region, type = "bar") |>
+      plot_ly(x = ~category, 
+              y = ~injuries, 
+              color = ~region, 
+              type = "bar", 
+              text = ~paste0("<br>Category: ", category, "<br>Injuries: ", injuries),
+              hoverinfo = "text",
+              textposition = "none") |>
       layout(title = "Injury Breakdown Bar Chart", 
             barmode = "group", 
             legend=list(title=list(text='Region')),
@@ -314,7 +330,13 @@ server <- function(input, output, session) {
       motorists = sum(number_of_motorist_killed),
       .groups = "drop") |>
       pivot_longer(-region, names_to = "category", values_to = "deaths") |>
-      plot_ly(x = ~category, y = ~deaths, color = ~region, type = "bar") |>
+      plot_ly(x = ~category, 
+              y = ~deaths,
+              color = ~region, 
+              type = "bar", 
+              text = ~paste0("<br>Category: ", category, "<br>Fatalities: ", deaths),
+              hoverinfo = "text",
+              textposition = "none") |>
       layout(title = "Fatality Breakdown Bar Chart", 
             barmode = "group", 
             legend=list(title=list(text='Region')), 
