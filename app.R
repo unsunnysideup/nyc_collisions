@@ -141,16 +141,7 @@ server <- function(input, output, session) {
     
     left_join(my_sf, counts, by = "geoname")
   }) 
-  lnglat_data <- reactive({
-    data |>
-      filter(crash_date >= input$map_date_range[1],
-           crash_date <= input$map_date_range[2]) |>
-      group_by(longitude, latitude) |>
-      summarize(count = n(),
-      deaths = sum(number_of_persons_killed),
-      injuries = sum(number_of_persons_injured),
-      .groups = "drop")
-  })
+
   reasons <- reactive({
     data |> 
       filter(crash_date >= input$map_date_range[1],
@@ -161,14 +152,12 @@ server <- function(input, output, session) {
   })
 
   output$map <- renderLeaflet({
-    heatmap_data <- lnglat_data()
     leaflet_data <- map_data()
     factor_data <- reasons()
 
     metric <- input$metric
     leaflet_data$value <- leaflet_data[[metric]]
-    heatmap_data$value <- heatmap_data[[metric]]
-
+    
     pal <- colorNumeric(
     palette = "YlOrRd", 
     domain = leaflet_data$value)
@@ -197,25 +186,7 @@ server <- function(input, output, session) {
   setMaxBounds( lng1 = -75.9374
                 , lat1 = 39.3682
                 , lng2 = -71.7187
-                , lat2 = 42.0329 ) |>
-  # Heatmap
-  addHeatmap(
-    data = heatmap_data,
-    lng = ~longitude,
-    lat = ~latitude,
-    blur = 1,
-    radius = 5,
-    minOpacity = 0.50,
-    gradient = "Blues",
-    group = "Heatmap" # Name this group
-  ) |>
-  # Layer Control
-  addLayersControl(
-    position = "topleft",
-    overlayGroups = c("Choropleth", "Heatmap"),
-    options = layersControlOptions(collapsed = FALSE)
-  ) |>
-      hideGroup("Heatmap") 
+                , lat2 = 42.0329 )
 
   })
   output$boroughtable <- renderDT({
