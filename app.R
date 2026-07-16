@@ -263,8 +263,8 @@ server <- function(input, output, session) {
   output$hourPlot <- renderPlotly({
     req(comparison_data())
     hourData <- comparison_data()
-    region_col <- if (input$region_type == "geoname") "geoname" else "borough"
-    
+    region_col <- isolate(if (input$region_type == "geoname") "geoname" else "borough")
+
     w$hide()
     hourData |>
       mutate(crash_hour = hour(crash_time)) |>
@@ -290,7 +290,7 @@ server <- function(input, output, session) {
   output$timePlot <- renderPlotly({
     req(comparison_data())
     timeData <- comparison_data()
-    region_col <- if (input$region_type == "geoname") "geoname" else "borough"
+    region_col <- isolate(if (input$region_type == "geoname") "geoname" else "borough")
 
     timeData |>
       group_by(crash_date, region = .data[[region_col]]) |>
@@ -313,7 +313,7 @@ server <- function(input, output, session) {
   output$injuryChart <- renderPlotly({
     req(comparison_data())
     injuryData <- comparison_data() 
-    region_col <- if (input$region_type == "geoname") "geoname" else "borough"
+    region_col <- isolate(if (input$region_type == "geoname") "geoname" else "borough")
 
     injuryData |>
       group_by(region = .data[[region_col]]) |>
@@ -340,7 +340,7 @@ server <- function(input, output, session) {
   output$fatalityChart <- renderPlotly({
     req(comparison_data())
     fatalityData <- comparison_data() 
-    region_col <- if (input$region_type == "geoname") "geoname" else "borough"
+    region_col <- isolate(if (input$region_type == "geoname") "geoname" else "borough")
 
     fatalityData |>
       group_by(region = .data[[region_col]]) |>
