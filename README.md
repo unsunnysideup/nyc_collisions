@@ -1,5 +1,5 @@
-# CrashLens NYC
-This is an interactive web application allowing exploration of various scales into the patterns and trends of over two million New York City's motor crashes. The following includes questions (not limited to) that can be explored in CrashLens NYC:
+# NYC CrashLens
+This is an interactive web application allowing exploration of various scales into the patterns and trends of over two million New York City's motor crashes. The following includes questions (not limited to) that can be explored in NYC Crashlens:
 
 - Which regions have all-time high crashes or casualties? 
 - What patterns is present regarding crashes or casualties in the broader view of NYC across certain time frames? 
@@ -7,12 +7,12 @@ This is an interactive web application allowing exploration of various scales in
 - Which groups are more impacted by crashes and how do they differ across space and time?
 - What are common reported crash factors across city-view, borough-view, and neighborhood-view?
 
-Check out CrashLens NYC [here](https://txsu-n-nyccrashlens.share.connect.posit.cloud/)! 
+Check out NYC CrashLens [here](https://txsu-n-nyccrashlens.share.connect.posit.cloud/)! 
 
 **Note**: Please use a desktop browser for best experience.
 
 ## Features
-CrashLens NYC has three main tools:
+NYC CrashLens has three main tools:
 
 1. **Home** - The homepage of the application: Features an interactive, scalable chloroplethic leaflet of NYC by neighborhoods and a borough table sorted by highest frequency. Both the leaflet and table display frequency with user's selection of timeframe from 2012 to 2026 and metric from a dropdown of three choices: crashes, injuries and fatalities. The leaflet also allows users to click into a neighborhood for more information regarding their name, borough, exact count, and top three reported factors for vehicular crashes.  
 
