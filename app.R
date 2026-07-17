@@ -17,6 +17,31 @@ library(waiter)
 data <- read_parquet("data/collisions_data.parquet")
 my_sf <- read_rds("data/my_sf.rds")
 
+# database data
+database <- data |>
+        select(-c(location)) |>
+        filter(!str_detect(contributing_factor_vehicle_1, "\\d")) |>
+        mutate(
+          geoname = as.factor(geoname),
+          borough = as.factor(borough),
+          contributing_factor_vehicle_1 = as.factor(
+            contributing_factor_vehicle_1
+          )
+        ) |>
+        rename(contributing_factor = contributing_factor_vehicle_1) |>
+        select(
+          collision_id,
+          crash_date,
+          crash_time,
+          borough,
+          geocode,
+          geoname,
+          longitude,
+          latitude,
+          contributing_factor,
+          everything()
+        )
+
 # UI
 ui <- page_navbar(
   # loading screen
@@ -476,29 +501,7 @@ server <- function(input, output, session) {
     {
       w$show()
 
-      database <- data |>
-        select(-c(location)) |>
-        filter(!str_detect(contributing_factor_vehicle_1, "\\d")) |>
-        mutate(
-          geoname = as.factor(geoname),
-          borough = as.factor(borough),
-          contributing_factor_vehicle_1 = as.factor(
-            contributing_factor_vehicle_1
-          )
-        ) |>
-        rename(contributing_factor = contributing_factor_vehicle_1) |>
-        select(
-          collision_id,
-          crash_date,
-          crash_time,
-          borough,
-          geocode,
-          geoname,
-          longitude,
-          latitude,
-          contributing_factor,
-          everything()
-        )
+      dt_data <- database
 
       w$hide()
 
